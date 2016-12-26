@@ -60,7 +60,10 @@
 #include "components/autofill/core/browser/autofill_manager.h"
 #include "components/zoom/page_zoom.h"
 #include "components/zoom/zoom_controller.h"
+#include "content/browser/browser_plugin/browser_plugin_guest.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
+#include "content/browser/web_contents/web_contents_impl.h"
+#include "content/common/browser_plugin/browser_plugin_messages.h"
 #include "content/public/browser/browser_plugin_guest_manager.h"
 #include "content/public/browser/favicon_status.h"
 #include "content/public/browser/memory_pressure_controller.h"
@@ -637,6 +640,180 @@ void WebContents::AutofillPopupHidden() {
     autofill::AtomAutofillClient::FromWebContents(web_contents());
   if (autofillClient)
     autofillClient->PopupHidden();
+}
+
+void WebContents::AttachGuest(mate::Arguments* args) {
+  v8::Locker locker(isolate());
+  v8::HandleScope handle_scope(isolate());
+  // LOG(ERROR) << "AttachGuest: 1";
+
+  auto browser_context = web_contents()->GetBrowserContext();
+
+  int guest_instance_id;
+  if (!args->GetNext(&guest_instance_id)) {
+    args->ThrowError("`guest_instance_id` is a required field");
+    return;
+  }
+  // LOG(ERROR) << "AttachGuest: 2";
+
+  /*
+  auto guest_view_manager =
+      static_cast<GuestViewManager*>(browser_context->GetGuestManager());
+
+  if (!guest_view_manager) {
+    args->ThrowError("No guest view manager");
+    return;
+  }
+  */
+  // LOG(ERROR) << "AttachGuest: 3";
+
+  brave::TabViewGuest* guest =
+        brave::TabViewGuest::FromWebContents(web_contents());
+
+  // LOG(ERROR) << "AttachGuest: 4";
+
+  if (!guest) {
+    args->ThrowError("No guest attached");
+    return;
+  }
+
+  /*
+  if (!guest_delegate_) {
+    args->ThrowError("No guest delegate");
+    return;
+  }
+
+  int embedder_process_id =
+    guest_delegate_->embedder_web_contents()
+      ->GetMainFrame()->GetProcess()->GetID();
+
+  base::DictionaryValue attach_params;
+
+  guest_view_manager->DetachGuest(guest);
+
+  content::WebContents* guest_web_contents =
+    guest_view_manager->GetGuestByInstanceIDSafely(
+      guest_instance_id, embedder_process_id);
+
+  content::WebContents* guest_web_contents2 =
+    guest_view_manager->GetGuestByInstanceIDSafely(
+    2, embedder_process_id);
+
+  brave::TabViewGuest* guest2 =
+    brave::TabViewGuest::FromWebContents(guest_web_contents);
+  */
+
+  /*
+  int view_instance_id = guest->view_instance_id();
+  int element_instance_id = guest->element_instance_id();
+  LOG(ERROR) << "Attach: view_instance_id:" << view_instance_id;
+  attach_params.SetInteger(guest_view::kParameterInstanceId, view_instance_id);
+  attach_params.SetInteger(guest_view::kElementWidth, 875);
+  attach_params.SetInteger(guest_view::kElementHeight, 700);
+  */
+
+  // LOG(ERROR) << "Attaching guest element: guest_instance_id:"
+  //   << attaching_guest->guest_instance_id();
+  // LOG(ERROR) << "Attach: embedder_processId:" << embedder_process_id;
+  // LOG(ERROR) << "Attach: element_instance_id :" << element_instance_id;
+  // LOG(ERROR) << "Attach: guest_instance_id:" << guest_instance_id;
+
+  // This is just a test, remove it after
+  // guest_view_manager->AddGuestWithWebContents(
+  //   brave::TabViewGuest::Type, HostWebContents(), guest_web_contents);
+  /*
+  guest_view_manager->AttachGuest(embedder_process_id,
+    element_instance_id,
+    guest_instance_id,
+    attach_params);
+
+  content::BrowserPluginGuest* browser_plugin_guest =
+    static_cast<content::WebContentsImpl*>(guest_web_contents)
+    ->GetBrowserPluginGuest();
+  content::BrowserPluginGuest* browser_plugin_guest2 =
+    static_cast<content::WebContentsImpl*>(guest_web_contents2)
+    ->GetBrowserPluginGuest();
+  */
+
+  guest->AttachGuest(1);
+
+  /*
+  BrowserPluginHostMsg_Attach_Params browser_plugin_host_msg_attach_params;
+  LOG(ERROR) << "Attach: old visible:"
+    << browser_plugin_host_msg_attach_params.visible;
+  browser_plugin_host_msg_attach_params.visible = true;
+  browser_plugin_host_msg_attach_params.view_rect = gfx::Rect(0, 67, 882, 765);
+  browser_plugin_guest->Attach(element_instance_id,
+    static_cast<content::WebContentsImpl*>(
+      guest_delegate_->embedder_web_contents()),
+    browser_plugin_host_msg_attach_params);
+  */
+}
+
+void WebContents::DetachGuest(mate::Arguments* args) {
+  v8::Locker locker(isolate());
+  v8::HandleScope handle_scope(isolate());
+
+  auto browser_context = web_contents()->GetBrowserContext();
+
+  brave::TabViewGuest* guest =
+        brave::TabViewGuest::FromWebContents(web_contents());
+
+  if (!guest) {
+    args->ThrowError("No guest attached");
+    return;
+  }
+  guest->DetachGuest();
+
+  /*
+  v8::Locker locker(isolate());
+  v8::HandleScope handle_scope(isolate());
+
+  auto browser_context = web_contents()->GetBrowserContext();
+
+  auto guest_view_manager =
+      static_cast<GuestViewManager*>(browser_context->GetGuestManager());
+
+  if (!guest_view_manager) {
+    args->ThrowError("No guest view manager");
+    return;
+  }
+
+  brave::TabViewGuest* guest =
+        brave::TabViewGuest::FromWebContents(web_contents());
+
+  if (!guest) {
+    args->ThrowError("No guest attached");
+    return;
+  }
+
+  guest_view_manager->DetachGuest(guest);
+
+  int embedder_process_id =
+    guest_delegate_->embedder_web_contents()
+    ->GetMainFrame()->GetProcess()->GetID();
+
+  content::WebContents* guest_web_contents =
+    guest_view_manager->GetGuestByInstanceIDSafely(1, embedder_process_id);
+
+  content::BrowserPluginGuest* browser_plugin_guest =
+    static_cast<content::WebContentsImpl*>(guest_web_contents)
+    ->GetBrowserPluginGuest();
+
+  LOG(ERROR) << "atom_api_web_contents.cc Detach() GetGuestInstanceId: "
+    << GetGuestInstanceId();
+  browser_plugin_guest->Detach(GetGuestInstanceId());
+  */
+
+  /*
+  base::Callback<void (content::WebContents *)> empty_callback;
+  base::DictionaryValue create_params;
+  mate::Dictionary options;
+  guest_view_manager->CreateGuest(brave::TabViewGuest::Type,
+    HostWebContents(), create_params,
+    base::Bind(&WebContents::OnTabCreated,
+      base::Unretained(this), options, empty_callback));
+      */
 }
 
 content::WebContents* WebContents::OpenURLFromTab(
@@ -1740,6 +1917,16 @@ void WebContents::SetActive(bool active) {
   Emit("set-active", active);
 }
 
+void WebContents::SetPinned(bool pinned) {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  auto tab_helper = extensions::TabHelper::FromWebContents(web_contents());
+  if (tab_helper)
+    tab_helper->SetPinned(pinned);
+#endif
+
+  Emit("set-pinned", pinned);
+}
+
 void WebContents::SetTabIndex(int index) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   auto tab_helper = extensions::TabHelper::FromWebContents(web_contents());
@@ -2117,6 +2304,7 @@ void WebContents::BuildPrototype(v8::Isolate* isolate,
       .SetProperty("id", &WebContents::ID)
       .SetMethod("getContentWindowId", &WebContents::GetContentWindowId)
       .SetMethod("setActive", &WebContents::SetActive)
+      .SetMethod("setPinned", &WebContents::SetPinned)
       .SetMethod("setTabIndex", &WebContents::SetTabIndex)
       .SetMethod("setWebRTCIPHandlingPolicy",
                   &WebContents::SetWebRTCIPHandlingPolicy)
@@ -2145,6 +2333,8 @@ void WebContents::BuildPrototype(v8::Isolate* isolate,
       .SetMethod("close", &WebContents::CloseContents)
       .SetMethod("autofillSelect", &WebContents::AutofillSelect)
       .SetMethod("autofillPopupHidden", &WebContents::AutofillPopupHidden)
+      .SetMethod("attachGuest", &WebContents::AttachGuest)
+      .SetMethod("detachGuest", &WebContents::DetachGuest)
       .SetProperty("session", &WebContents::Session)
       .SetProperty("guestInstanceId", &WebContents::GetGuestInstanceId)
       .SetProperty("hostWebContents", &WebContents::HostWebContents)
@@ -2202,6 +2392,11 @@ void WebContents::OnTabCreated(const mate::Dictionary& options,
   int opener_tab_id = -1;
   options.Get("openerTabId", &opener_tab_id);
 
+  bool pinned = false;
+  if (options.Get("pinned", &pinned)) {
+    SetPinned(pinned);
+  }
+
   content::WebContents* source = nullptr;
   if (opener_tab_id != -1) {
     source = extensions::TabHelper::GetTabById(opener_tab_id);
@@ -2219,10 +2414,12 @@ void WebContents::OnTabCreated(const mate::Dictionary& options,
                     user_gesture,
                     &was_blocked);
 
-  if (was_blocked)
-    callback.Run(nullptr);
-  else
-    callback.Run(tab);
+  if (!callback.is_null()) {
+    if (was_blocked)
+      callback.Run(nullptr);
+    else
+      callback.Run(tab);
+  }
 }
 
 // static
@@ -2279,6 +2476,10 @@ void WebContents::CreateTab(mate::Arguments* args) {
     create_params.SetString("parent_partition",
         browser_context->original_context()->partition_with_prefix());
   }
+
+  bool pinned = false;
+  options.Get("pinned", &pinned);
+  create_params.SetBoolean("pinned", pinned);
 
   guest_view_manager->CreateGuest(brave::TabViewGuest::Type,
       owner->web_contents(),

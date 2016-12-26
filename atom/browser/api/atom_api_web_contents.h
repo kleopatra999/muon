@@ -217,6 +217,7 @@ class WebContents : public mate::TrackableObject<WebContents>,
   void Focus();
   bool IsFocused() const;
   void SetActive(bool active);
+  void SetPinned(bool pinned);
   void SetTabIndex(int index);
 
   // Zoom
@@ -260,6 +261,8 @@ class WebContents : public mate::TrackableObject<WebContents>,
 
   void AutofillSelect(const std::string& value, int frontend_id, int index);
   void AutofillPopupHidden();
+  void AttachGuest(mate::Arguments* args);
+  void DetachGuest(mate::Arguments* args);
 
   // Returns the web preferences of current WebContents.
   v8::Local<v8::Value> GetWebPreferences(v8::Isolate* isolate);

@@ -177,6 +177,19 @@ void TabViewGuest::DidCommitProvisionalLoadForFrame(
   // find_helper_.CancelAllFindSessions();
 }
 
+void TabViewGuest::AttachGuest(int guestInstanceId) {
+  std::unique_ptr<base::DictionaryValue> args(new base::DictionaryValue());
+  args->SetInteger("guestInstanceId", guestInstanceId);
+  DispatchEventToView(base::MakeUnique<GuestViewEvent>(
+      "webViewInternal.onAttachGuest", std::move(args)));
+}
+
+void TabViewGuest::DetachGuest() {
+  std::unique_ptr<base::DictionaryValue> args(new base::DictionaryValue());
+  DispatchEventToView(base::MakeUnique<GuestViewEvent>(
+      "webViewInternal.onDetachGuest", std::move(args)));
+}
+
 void TabViewGuest::DidInitialize(const base::DictionaryValue& create_params) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Locker locker(isolate);
@@ -204,11 +217,17 @@ void TabViewGuest::CreateWebContents(
     options.Set("partition", partition);
   }
 
-  LOG(ERROR) << "create web contents " << params;
   std::string parent_partition;
-  if (params.GetString("parent_partition", &partition)) {
-    options.Set("parent_partition", partition);
+  if (params.GetString("parent_partition", &parent_partition)) {
+    options.Set("parent_partition", parent_partition);
   }
+
+  bool pinned = false;
+  if (params.GetBoolean("pinned", &pinned)) {
+    options.Set("pinned", pinned);
+  }
+
+  should_nav_from_src_ = true;
 
   mate::Handle<atom::api::WebContents> new_api_web_contents =
       atom::api::WebContents::CreateGuest(isolate, options, this);
@@ -247,6 +266,10 @@ void TabViewGuest::ApplyAttributes(const base::DictionaryValue& params) {
 
   // handle navigation for src attribute changes
   if (!is_pending_new_window) {
+    bool pinned = false;
+    if (params.GetBoolean("pinned", &pinned)) {
+      extensions::TabHelper::FromWebContents(web_contents())->SetPinned(pinned);
+    }
     bool clone = false;
     if (params.GetBoolean("clone", &clone) && clone) {
       clone_ = true;
@@ -255,8 +278,10 @@ void TabViewGuest::ApplyAttributes(const base::DictionaryValue& params) {
       if (params.GetString("src", &src)) {
         src_ = GURL(src);
       }
-      if (attached()) {
+
+      if (attached() && should_nav_from_src_) {
         NavigateGuest(src_.spec(), true);
+        should_nav_from_src_ = false;
       }
     }
   }
@@ -275,6 +300,13 @@ void TabViewGuest::DidAttachToEmbedder() {
   if (web_contents()->GetController().IsInitialNavigation()) {
     web_contents()->GetController().LoadIfNecessary();
   }
+
+  /*
+  LOG(ERROR) << "TabViewGuest::DidAttachToEmbedder owner_web_contents_:"
+    << " render process host id:"
+    << web_contents()->GetRenderProcessHost()->GetID() << " "
+    << web_contents()->GetURL();
+  */
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   api_web_contents_->Emit("did-attach",
@@ -301,6 +333,14 @@ int TabViewGuest::GetTaskPrefix() const {
 void TabViewGuest::GuestReady() {
   // we don't use guest only processes and don't want those limitations
   CHECK(!web_contents()->GetRenderProcessHost()->IsForGuestsOnly());
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  api_web_contents_->Emit("guest-ready",
+      extensions::TabHelper::IdForTab(web_contents()), guest_instance_id());
+#else
+  api_web_contents_->Emit("guest-ready",
+      web_contents()->GetRenderProcessHost()->GetID(), guest_instance_id());
+#endif
 
   web_contents()
       ->GetRenderViewHost()
@@ -333,14 +373,25 @@ bool TabViewGuest::IsAutoSizeSupported() const {
 TabViewGuest::TabViewGuest(WebContents* owner_web_contents)
     : GuestView<TabViewGuest>(owner_web_contents),
       api_web_contents_(nullptr),
-      clone_(false) {
+      clone_(false),
+      should_nav_from_src_(false) {
 }
 
 TabViewGuest::~TabViewGuest() {
+    int x = 0;
+    x++;
 }
 
 void TabViewGuest::WillAttachToEmbedder() {
   DCHECK(api_web_contents_);
+
+  /*
+  LOG(ERROR) << "TabViewGuest::WillAttachToEmbedder owner_web_contents_:"
+    << "render process host id:"
+    << owner_web_contents()->GetRenderProcessHost()->GetID()
+    << " " << owner_web_contents()->GetURL();
+  */
+
   api_web_contents_->Emit("will-attach", owner_web_contents());
 
   // update the owner window

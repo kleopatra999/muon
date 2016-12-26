@@ -185,6 +185,7 @@ void Window::OnWindowBlur() {
 }
 
 void Window::OnWindowFocus() {
+  // LOG(ERROR) << "Window::OnWindowFocus()......... focus";
   Emit("focus");
 }
 

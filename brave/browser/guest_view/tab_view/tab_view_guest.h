@@ -27,6 +27,9 @@ class TabViewGuest : public guest_view::GuestView<TabViewGuest> {
 
   static const char Type[];
 
+  void AttachGuest(int guest_instance_id);
+  void DetachGuest();
+
  private:
   explicit TabViewGuest(content::WebContents* owner_web_contents);
 
@@ -82,6 +85,8 @@ class TabViewGuest : public guest_view::GuestView<TabViewGuest> {
 
   // Stores the src URL of the WebView.
   GURL src_;
+
+  bool should_nav_from_src_;
 
   // Tracks the name, and target URL of the new window. Once the first
   // navigation commits, we no longer track this information.
